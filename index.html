@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Antes de ver el dato: ¿cuánto tiempo de pantalla?</title>
+<style>
+  :root {
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    --bg: #f6f4ef;
+    --fg: #1f2a2e;
+    --muted: #5f6b70;
+    --card: #ffffff;
+    --border: #d9d5ca;
+    --accent: #0f766e;
+    --accent-soft: #d8efec;
+    --ok: #1a7f4b;
+    --ok-soft: #dcf3e5;
+    --bad: #b4492f;
+    --bad-soft: #f8e1da;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15191b;
+      --fg: #eceae4;
+      --muted: #9aa5a9;
+      --card: #1f2528;
+      --border: #333c40;
+      --accent: #4fc1b6;
+      --accent-soft: #1d3a37;
+      --ok: #62d08e;
+      --ok-soft: #1b3326;
+      --bad: #f0907a;
+      --bad-soft: #3a231d;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15191b; --fg: #eceae4; --muted: #9aa5a9; --card: #1f2528; --border: #333c40;
+    --accent: #4fc1b6; --accent-soft: #1d3a37; --ok: #62d08e; --ok-soft: #1b3326;
+    --bad: #f0907a; --bad-soft: #3a231d; color-scheme: dark;
+  }
+  html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0; min-height: 100%;
+    background: var(--bg); color: var(--fg);
+    font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 640px; margin: 0 auto; padding: 24px 18px 40px; }
+  .kicker { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  h1 { font-family: Georgia, "Times New Roman", serif; font-size: 26px; line-height: 1.25; margin: 8px 0 14px; font-weight: 700; }
+  .vignette { font-family: Georgia, "Times New Roman", serif; font-size: 17px; color: var(--fg); border-left: 3px solid var(--accent); padding: 2px 0 2px 14px; margin: 0 0 22px; }
+  .prompt { font-weight: 600; margin: 0 0 12px; }
+  .opts { display: grid; gap: 10px; }
+  button.opt {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    text-align: left; font: inherit; color: inherit;
+    background: var(--card); border: 1.5px solid var(--border); border-radius: 14px;
+    padding: 14px 14px; cursor: pointer; position: relative; overflow: hidden;
+  }
+  button.opt:hover:not(:disabled) { border-color: var(--accent); }
+  button.opt:disabled { cursor: default; }
+  .letter {
+    flex: none; width: 32px; height: 32px; border-radius: 50%;
+    display: grid; place-items: center; font-weight: 700; font-size: 14px;
+    background: var(--accent-soft); color: var(--accent);
+  }
+  .label { flex: 1; position: relative; z-index: 1; }
+  .pct { position: relative; z-index: 1; font-variant-numeric: tabular-nums; font-weight: 700; color: var(--muted); }
+  .bar { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--accent-soft); transition: width .5s ease; z-index: 0; }
+  button.opt.ok { border-color: var(--ok); }
+  button.opt.ok .bar { background: var(--ok-soft); }
+  button.opt.ok .letter { background: var(--ok); color: var(--bg); }
+  button.opt.mine.bad { border-color: var(--bad); }
+  button.opt.mine.bad .bar { background: var(--bad-soft); }
+  button.opt.mine.bad .letter { background: var(--bad); color: var(--bg); }
+  .hint { color: var(--muted); font-size: 14px; margin-top: 14px; }
+  #reveal { display: none; margin-top: 24px; }
+  #reveal.show { display: block; animation: rise .45s ease; }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .data { background: var(--card); border: 1.5px solid var(--border); border-radius: 18px; padding: 22px 18px; text-align: center; }
+  .data small { display: block; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .big { font-family: Georgia, "Times New Roman", serif; font-size: 64px; line-height: 1.1; font-weight: 700; color: var(--accent); margin: 6px 0 2px; }
+  .data .sub { color: var(--muted); font-size: 14px; }
+  .why { margin: 18px 2px 0; font-size: 16px; }
+  .why p { margin: 0 0 6px; }
+  .verdict { font-weight: 700; margin: 0 0 10px; }
+  .verdict.ok { color: var(--ok); }
+  .verdict.bad { color: var(--bad); }
+  .tally { color: var(--muted); font-size: 14px; margin-top: 16px; }
+  .owner { margin-top: 28px; font-size: 13px; color: var(--muted); }
+  .owner button { font: inherit; background: none; color: var(--muted); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+</style>
+</head>
+<body>
+<main>
+  <div class="kicker">Pregunta de predicción</div>
+  <h1>Antes de ver el dato…</h1>
+
+  <p class="vignette">Lucía tiene 4 años y entra al consultorio con el celular en la mano. Su mamá, agotada, suelta la pregunta que todos los pediatras escuchamos por semana: «¿Cuánto tiempo por día puede mirar pantallas, doctora?»</p>
+
+  <p class="prompt">¿Qué le recomendarías?</p>
+
+  <div class="opts" id="opts"></div>
+  <p class="hint" id="hint">Tocá una opción para votar. Después se muestra el dato.</p>
+
+  <section id="reveal" aria-live="polite">
+    <div class="data">
+      <small>Tiempo de exposición recomendado · 3 a 5 años</small>
+      <div class="big">1 hora</div>
+      <div class="sub">máximo por día, de pantallas recreativas</div>
+    </div>
+    <div class="why">
+      <p class="verdict" id="verdict"></p>
+      <p>La pauta vigente (OMS, AAP y Sociedad Argentina de Pediatría) es un máximo de 1 hora diaria, con contenido de calidad y acompañamiento de un adulto.</p>
+      <p>Las «2 horas» son la recomendación anterior que muchos seguimos repitiendo por inercia.</p>
+    </div>
+    <div class="tally" id="tally"></div>
+  </section>
+
+  <div class="owner" id="owner" hidden>
+    <button id="reset" type="button">Reiniciar votos</button>
+  </div>
+</main>
+
+<script>
+(function () {
+  var OPTIONS = [
+    { k: 'a', t: 'Hasta 30 minutos por día' },
+    { k: 'b', t: 'Hasta 1 hora por día' },
+    { k: 'c', t: 'Hasta 2 horas por día' },
+    { k: 'd', t: 'Sin límite si el contenido es educativo' }
+  ];
+  var CORRECT = 'b';
+  var LS_KEY = 'pred-pantallas-voto';
+
+  var mine = null;
+  var counts = { a: 0, b: 0, c: 0, d: 0 };
+  var dbReady = false;
+  var db = null, myId = null;
+
+  try { mine = localStorage.getItem(LS_KEY) || null; } catch (e) {}
+  if (mine && !OPTIONS.some(function (o) { return o.k === mine; })) mine = null;
+
+  var optsEl = document.getElementById('opts');
+  var buttons = {};
+
+  OPTIONS.forEach(function (o, i) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'opt';
+    var bar = document.createElement('span'); bar.className = 'bar';
+    var l = document.createElement('span'); l.className = 'letter'; l.textContent = String.fromCharCode(65 + i);
+    var t = document.createElement('span'); t.className = 'label'; t.textContent = o.t;
+    var p = document.createElement('span'); p.className = 'pct';
+    b.appendChild(bar); b.appendChild(l); b.appendChild(t); b.appendChild(p);
+    b.addEventListener('click', function () { vote(o.k); });
+    optsEl.appendChild(b);
+    buttons[o.k] = { b: b, bar: bar, pct: p };
+  });
+
+  function total() { return counts.a + counts.b + counts.c + counts.d; }
+
+  function render() {
+    var voted = !!mine;
+    var tot = total();
+    OPTIONS.forEach(function (o) {
+      var x = buttons[o.k];
+      x.b.disabled = voted;
+      x.b.classList.toggle('mine', voted && mine === o.k);
+      x.b.classList.toggle('ok', voted && o.k === CORRECT);
+      x.b.classList.toggle('bad', voted && o.k !== CORRECT);
+      if (voted && dbReady && tot > 0) {
+        var pc = Math.round(counts[o.k] * 100 / tot);
+        x.bar.style.width = pc + '%';
+        x.pct.textContent = pc + '%';
+      } else {
+        x.bar.style.width = (voted && o.k === CORRECT) ? '100%' : '0';
+        x.pct.textContent = '';
+      }
+    });
+    var reveal = document.getElementById('reveal');
+    var hint = document.getElementById('hint');
+    if (voted) {
+      reveal.classList.add('show');
+      hint.style.display = 'none';
+      var v = document.getElementById('verdict');
+      var right = mine === CORRECT;
+      v.textContent = right ? 'Acertaste.' : 'No te preocupes: es el error más común.';
+      v.className = 'verdict ' + (right ? 'ok' : 'bad');
+      var ty = document.getElementById('tally');
+      if (dbReady && tot > 0) {
+        var okPc = Math.round(counts[CORRECT] * 100 / tot);
+        ty.textContent = tot + ' votos · ' + okPc + '% eligió 1 hora.';
+      } else {
+        ty.textContent = '';
+      }
+    }
+  }
+
+  function vote(k) {
+    if (mine) return;
+    mine = k;
+    try { localStorage.setItem(LS_KEY, k); } catch (e) {}
+    if (dbReady && db && myId) {
+      db.doc('votes/' + myId).set({ choice: k }).catch(function () {});
+    }
+    render();
+  }
+
+  render();
+
+  // Tally compartido: se activa solo si la vista lo permite
+  if (window.claude && typeof window.claude.use === 'function') {
+    Promise.all([window.claude.use('db'), window.claude.use('user')]).then(function (r) {
+      db = r[0]; var user = r[1];
+      if (!db || !user) return;
+      Promise.resolve(user.id()).then(function (id) {
+        myId = id;
+        dbReady = true;
+        db.collection('votes').onSnapshot(function (snap) {
+          var c = { a: 0, b: 0, c: 0, d: 0 };
+          snap.docs.forEach(function (d) {
+            var data = d.data();
+            if (data && c.hasOwnProperty(data.choice)) c[data.choice]++;
+          });
+          counts = c;
+          render();
+        }, function () { dbReady = false; render(); });
+        // Si ya había votado en este dispositivo y aún no está registrado, lo registra
+        if (mine && myId) {
+          db.doc('votes/' + myId).get().then(function (s) {
+            if (!s.exists) db.doc('votes/' + myId).set({ choice: mine }).catch(function () {});
+          }).catch(function () {});
+        }
+      });
+      user.isOwner().then(function (isOwner) {
+        if (!isOwner) return;
+        var box = document.getElementById('owner'); box.hidden = false;
+        var btn = document.getElementById('reset');
+        var armed = false;
+        btn.addEventListener('click', function () {
+          if (!armed) { armed = true; btn.textContent = 'Tocá de nuevo para borrar todos los votos'; return; }
+          btn.disabled = true;
+          db.collection('votes').get().then(function (s) {
+            return Promise.all(s.docs.map(function (d) { return db.doc('votes/' + d.id).delete(); }));
+          }).then(function () {
+            try { localStorage.removeItem(LS_KEY); } catch (e) {}
+            btn.textContent = 'Votos reiniciados';
+          }).catch(function () { btn.textContent = 'No se pudo reiniciar'; });
+        });
+      });
+    }).catch(function () {});
+  }
+})();
+</script>
+</body>
+</html>
